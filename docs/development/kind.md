@@ -1,0 +1,3 @@
+# Developing with Kind
+
+For iterating on shim development it's recommended to use [kind](https://kind.sigs.k8s.io). Once installed and a cluster has been created (`kind create cluster --config=e2e/kind.yaml`) run `make install-kind` to build and install everything on the kind cluster. After making code changes the fastest way to update the shim is using `make build-kind`, since this will only build the binary and copy the updated binary to the cluster.
