@@ -128,3 +128,27 @@ If the manager crashes, Kubernetes restarts only the manager container; the init
 - Exits once the mount is confirmed, allowing the manager to load eBPF programs.
 
 These init containers set up the necessary kernel‑level services (CRIU for checkpoint/restore, the BPF filesystem for eBPF programs, and the container runtime shim) before the **manager** container takes over the node‑level orchestration duties.
+
+## Runtime Components
+
+While the above focuses on build and deployment, Zeropod also includes key runtime components that operate during container lifecycle management. These are not separate images but binaries or processes started at runtime:
+
+### Containerd Shim (`containerd-shim-zeropod-v2`)
+- **Role**: Acts as the interface between containerd and the container sandbox. It manages the lifecycle of pods using the Zeropod runtime, including checkpointing and restoration.
+- **Build and Usage**: The shim binary is built during the `zeropod-installer` image build via `make build` (compiling `cmd/shim/main.go`). It is included as a static binary in the `zeropod-installer` image. No separate Dockerfile exists for the shim; it is compiled and packaged into the installer image at build-time.
+- **When Built**: As part of the `make build-installer` process (build-time).
+- **How Used**: At runtime, the installer copies the binary to the host (`/opt/zeropod`) and registers it with containerd. Loaded by containerd when a pod requests `runtimeClassName: zeropod`. It handles scaling decisions, communicates with the manager via Unix sockets, and starts the activator on demand.
+
+### Activator
+- **Role**: A userspace TCP proxy that listens on a random port, accepts incoming connections redirected by eBPF, restores the checkpointed container, and proxies initial requests to the application.
+- **Build and Usage**: The activator is a Go package (`activator/`) integrated into the shim binary (not a separate binary or image). It is compiled alongside the shim during `make build` and runs as an internal server/subprocess within the shim process. The `activator/Dockerfile` is used for eBPF development/testing (compiling eBPF bytecode in a Fedora environment), but does not produce a deployable activator binary.
+- **When Built**: Integrated during the shim build (`make build`) at build-time; eBPF-related code via `make build-ebpf` for development.
+- **How Used**: Started as a subprocess by the shim when a scaled-down container receives traffic. It ensures seamless restoration without user-perceived downtime.
+
+### eBPF Programs
+- **Role**: Kernel-level programs that redirect TCP traffic from the application's port to the activator's port when the container is checkpointed.
+- **Build and Usage**: Built via `zeropod-ebpf` image (from `activator/Dockerfile`), which compiles eBPF bytecode. The manager loads these programs into the kernel at runtime.
+- **When Built**: As part of `make build-ebpf` (build-time), pushed to registry.
+- **How Used**: Loaded by the manager container on node startup; attached to network interfaces to intercept traffic for scaled-down pods.
+
+These runtime components ensure Zeropod's core functionality: automatic scaling with minimal latency.

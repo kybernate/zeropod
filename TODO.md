@@ -64,4 +64,6 @@ Instead of editing `config/k3s/kustomization.yaml` directly, we should support a
   - Delete old `docs/development.md`.
 - [ ] **Gitignore Update**: Add `config/dev/` to `.gitignore`.
 - [ ] **Scripting**: Create `hack/setup-dev.sh` to generate a local kustomize overlay (`config/dev`) based on user selection.
+- [ ] **Extend ARCHITECTURE.md**: Add "Runtime Components" section covering Shim, Activator, and eBPF programs, including build/usage details for Dockerfiles in shim/ and activator/.
+- [ ] **Document Dockerfiles**: Explain build timing and usage for Dockerfiles in activator/ (eBPF testing) and shim/ (none, integrated in installer).
 - [ ] **Doc Update**: Ensure new guides reference using `kubectl apply -k config/dev` instead of editing tracked files.
