@@ -21,18 +21,23 @@ read -p "Enter choice (1-3): " choice
 case $choice in
     1)
         BASE_DIR="k3s"
+        REGISTRY="localhost:6443"
         ;;
     2)
         BASE_DIR="microk8s"
+        REGISTRY="localhost:32000"
         ;;
     3)
         BASE_DIR="kind"
+        REGISTRY="ghcr.io/ctrox"
         ;;
     *)
         echo "Invalid choice"
         exit 1
         ;;
 esac
+
+NAMESPACE=${NAMESPACE:-ctrox}
 
 # Create config/dev directory
 mkdir -p config/dev
@@ -42,12 +47,17 @@ cat > config/dev/kustomization.yaml << EOF
 resources:
   - ../$BASE_DIR
 
-# Uncomment and modify the lines below to override image tags for local development
-# images:
-# - name: zeropod-installer
-#   newTag: dev
-# - name: zeropod-manager
-#   newTag: dev
+# Images are overridden here to use the local registry.
+# Note: The 'name' fields must match the transformed names from config/production/kustomization.yaml,
+# since production already overrides the base images. Using the original names (e.g., 'installer' and 'manager')
+# would not work because Kustomize applies transforms sequentially.
+images:
+- name: ghcr.io/ctrox/zeropod-installer
+  newName: $REGISTRY/$NAMESPACE/zeropod-installer
+  newTag: dev
+- name: ghcr.io/ctrox/zeropod-manager
+  newName: $REGISTRY/$NAMESPACE/zeropod-manager
+  newTag: dev
 EOF
 
 echo "Created config/dev/kustomization.yaml"
